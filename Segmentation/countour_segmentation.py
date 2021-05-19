@@ -8,7 +8,7 @@ import os
 output = "out/"
 
 
-for im in glob('data_path/*.jpg')[:1]:
+for im in glob('data_path/*.jpg'):
     img = cv.imread(im)
     filename_w_ext = os.path.basename(im)
     filename, file_extension = os.path.splitext(filename_w_ext)
@@ -21,7 +21,7 @@ for im in glob('data_path/*.jpg')[:1]:
     Z = np.float32(Z)
 
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-    K = 8
+    K = 10
     ret,label,center=cv.kmeans(Z,K,None,criteria,10,cv.KMEANS_RANDOM_CENTERS)
 
     # Now convert back into uint8, and make original image
@@ -42,41 +42,51 @@ for im in glob('data_path/*.jpg')[:1]:
     lab = cv.merge((h1,s1,v1))  # merge channels
 
     enhanced_img = cv.cvtColor(lab, cv.COLOR_LAB2BGR)  # convert from LAB to BGR
-    # hsv = cv.cvtColor(enhanced_img, cv.COLOR_BGR2HSV)
+    hsv = cv.cvtColor(enhanced_img, cv.COLOR_BGR2HSV)
     # hsvrgb = cv.cvtColor(hsv, cv.COLOR_HSV2RGB)
-    gray = cv.cvtColor(kmeans_img, cv.COLOR_RGB2GRAY)
+    
+    # gray = cv.cvtColor(enhanced_img, cv.COLOR_RGB2GRAY)
+    # blur = cv.medianBlur(enhanced_img,5)
+    
 
-    _, threshold = cv.threshold(gray,0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
-    # _, threshold = cv.threshold(hsv,0,255,cv.THRESH_BINARY_INV)
+    # _, threshold = cv.threshold(gray,0,15,cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
+    # _, threshold = cv.threshold(dilated,0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
+    # threshold[np.where(threshold == 255, 0, 1)]
+    # print(np.max(img))
+    # print(np.mean(img))
+    try:
+        canny = cv.Canny(hsv, 84, 120)
+        dilated = cv.dilate(canny, (10,10), iterations=5) 
+        contours, hierarchy = cv.findContours(dilated,cv.RETR_TREE,cv.CHAIN_APPROX_NONE)
+        cnt = max(contours, key=cv.contourArea)
+        # cnt = contours[0]
+
+        # Create a new mask for the result image
+        # h, w = img.shape[:2]
+        # mask = np.zeros((h, w), np.uint8)
+
+        # Draw the contour on the new mask and perform the bitwise operation
+        # cv.drawContours(mask, [cnt],-1, 255, -1)
+        # res = cv.bitwise_and(img, img, mask=mask)
+
+        cv.fillPoly(dilated, pts=[cnt], color=(255,255,255))
+        res = cv.bitwise_and(img, img, mask=dilated)    
+
+        cv.imwrite(os.path.join(output, filename+'.jpg'), res)
+        
+        # cv.imshow("kmeans", kmeans_img)
+        # cv.imshow("gray", gray)
+        # cv.imshow("hsv", hsv)
+        # cv.imshow("hsvrgb", hsvrgb)
+        # cv.imshow("ench", enhanced_img)
+        # cv.imshow("thresh", threshold)
+        # cv.imshow("final", res)
+
+    except:
+
+        cv.imwrite(os.path.join(output, filename+'.jpg'), img)
 
 
-    contours, hierarchy = cv.findContours(threshold,cv.RETR_TREE,cv.CHAIN_APPROX_NONE)
-    cnt = max(contours, key=cv.contourArea)
-
-    # Create a new mask for the result image
-    h, w = img.shape[:2]
-    mask = np.zeros((h, w), np.uint8)
-
-    # Perform closing to remove hair and blur the image
-    # kernel = np.ones((15,15),np.uint8) 
-
-    # closing = cv.morphologyEx(img,cv.MORPH_CLOSE,kernel, iterations = 2)
-    # blur = cv.blur(closing,(15,15))
-
-    # Draw the contour on the new mask and perform the bitwise operation
-    cv.drawContours(mask, [cnt],-1, 255, -1)
-    res = cv.bitwise_and(img, img, mask=mask)
-
-    # cv.imwrite(os.path.join(output, filename+'.jpg'), res)
-    # cv.destroyAllWindows()
-
-    cv.imshow("kmeans", kmeans_img)
-    cv.imshow("gray", gray)
-    # cv.imshow("hsv", hsv)
-    # cv.imshow("hsvrgb", hsvrgb)
-    # cv.imshow("ench", enhanced_img)
-    cv.imshow("thresh", threshold)
-    cv.imshow("final", res)
     cv.waitKey(0)
     cv.destroyAllWindows()
 
