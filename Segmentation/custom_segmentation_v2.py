@@ -3,53 +3,56 @@ import numpy as np
 from glob import glob
 import os
 
+# path of where the images will be saved
 output = "out/"
 
+# for every image in the specified path...
 for im in glob('data_path/*.jpg'):
+    img = cv.imread(im) # read the image
     
-    img = cv.imread(im)
-    filename_w_ext = os.path.basename(im)
-    filename, file_extension = os.path.splitext(filename_w_ext)
-    print(filename)
+    filename_w_ext = os.path.basename(im) # extract the image name
+    filename, file_extension = os.path.splitext(filename_w_ext) # seperate filename from the ".jpg"
 
+    img = cv.resize(img, (256,256), interpolation=cv.INTER_AREA) # resize
+    median = cv.medianBlur(img,5) # apply Median filter
 
-    img = cv.resize(img, (256,256), interpolation=cv.INTER_AREA)
-    median = cv.medianBlur(img,5) # Apply Median filter
-
-    Z = median.reshape((-1,3))
-    Z = np.float32(Z)
+    Z = median.reshape((-1,3)) # combine the X and Y axis of the image, leave the colors
+    Z = np.float32(Z) # turn to float, as later float is expected as an argument
 
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-    K = 8
+    K = 5 # how many color centers to look for
     ret,label,center=cv.kmeans(Z,K,None,criteria,10,cv.KMEANS_RANDOM_CENTERS)
 
-    # Now convert back into uint8, and make original image
+    # now convert back into uint8, and make original image
     center = np.uint8(center)
     res = center[label.flatten()]
     kmeans_img = res.reshape((img.shape))
 
-
+    # create a Contrast Limited Adaptive Histogram Equalization (CLAHE)
     clahe = cv.createCLAHE(clipLimit=3., tileGridSize=(8,8))
 
-    hsv = cv.cvtColor(kmeans_img, cv.COLOR_BGR2HSV)# convert from BGR to HSV color space
+    hsv = cv.cvtColor(kmeans_img, cv.COLOR_RGB2HSV)# convert from RGB to HSV color space
 
-    h, s, v = cv.split(hsv)  # split on 3 different channels
-    #apply CLAHE to the L-channel
+    h, s, v = cv.split(hsv)  # split into 3 different channels
+    #apply CLAHE to every channel
     h1 = clahe.apply(h)
     s1 = clahe.apply(s)
     v1 = clahe.apply(v)
 
     lab = cv.merge((h1,s1,v1))  # merge channels
 
-    enhanced_img = cv.cvtColor(lab, cv.COLOR_LAB2BGR)  # convert from LAB to BGR
+    enhanced_img = cv.cvtColor(lab, cv.COLOR_LAB2RGB) # convert LAB to BGR
+    hsv = cv.cvtColor(enhanced_img, cv.COLOR_RGB2HSV) # convert RGB to HSV for optional use 
 
-    hsv = cv.cvtColor(enhanced_img, cv.COLOR_BGR2HSV)
-
+    # specify the color bounds
     lower_green = np.array([50,100,100])
     upper_green = np.array([100,255,255])
+    # obtain the mask based on the bounds
     mask_g = cv.inRange(hsv, lower_green, upper_green)
 
+    # inverted mask
     _, inv_mask = cv.threshold(mask_g,127,255,cv.THRESH_BINARY_INV)
+    # apply the mask onto the image
     res = cv.bitwise_and(img,img, mask= mask_g)
 
     mask = np.zeros(img.shape[:2],np.uint8)
@@ -74,27 +77,6 @@ for im in glob('data_path/*.jpg'):
         cv.grabCut(lab,mask,rect,bck_model,frg_model,10,cv.GC_INIT_WITH_RECT)
         mask2 = np.where((mask==2)|(mask==0),0,1).astype('uint8')
         segment_img= img*mask2[:,:,np.newaxis]
-
-
-    # cv.imshow("original", img)
-    # cv.imshow("hsv", hsv)
-    # cv.imshow("kmeans", kmeansimg)
-    # cv.imshow("segmented", segmentedimg)
-    # cv.imshow("grapcut", Segmented_mask)
-    # cv.waitKey(0)
-
-    
-    # segment_img_gray = cv.cvtColor(segment_img, cv.COLOR_RGB2GRAY)
-
-    # _,thresh = cv.threshold(segment_img_gray,1,255,cv.THRESH_BINARY)
-
-    # contours,hierarchy = cv.findContours(thresh,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
-    # cnt = contours[0]
-    # x,y,w,h = cv.boundingRect(cnt)
-    
-    # crop = segment_img_gray[y:y+h,x:x+w]
-    # cv.imwrite('sofwinres.png',crop)
-
 
     cv.imwrite(os.path.join(output, filename+'.jpg'), segment_img)
     cv.destroyAllWindows()
