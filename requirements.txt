@@ -1,7 +1,8 @@
-Numpy
-Pandas
-Sklearn
-Skimage
-Keras
-Matplotlib
-OpenCV
+numpy
+pandas
+sklearn
+scikit-image
+keras
+matplotlib
+openCV
+streamlit
