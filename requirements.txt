@@ -6,4 +6,4 @@ keras
 matplotlib
 openCV
 streamlit
-python 3.8.5
+python3.8.5
