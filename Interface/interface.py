@@ -27,7 +27,7 @@ if(image_file is not None):
 
     if(st.button("Continue")):
         prediction = predict(model, img)
-        st.write("The type of myaloma is predicted to be ")
+        st.write("The type of myeloma is predicted to be ")
         
         if(prediction):
             st.header("Malignant")
